@@ -1,4 +1,4 @@
-"""ã‚¶ã‚­Cards (ZakiCards): OLED-safe fullscreen flashcard slideshow.
+"""ザキCards (ZakiCards): OLED-safe fullscreen flashcard slideshow.
 
 Deck sources:
   * your Anki profiles (read from a *copy*, never written to)
@@ -490,7 +490,7 @@ class Handler(BaseHTTPRequestHandler):
                 added = entry not in cards
                 if added:
                     cards.append(entry)
-                LOCAL.save("â˜… Starred", cards, "starred", "starred")
+                LOCAL.save("★ Starred", cards, "starred", "starred")
                 return self._send({"added": added, "count": len(cards), "local": LOCAL.list()})
             if self.path == "/api/deck/delete":
                 LOCAL.delete(data["id"])
@@ -537,7 +537,7 @@ def main():
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     threading.Thread(target=_awake_loop, daemon=True).start()
     WINDOW["full"] = bool(SETTINGS.get("start_full", True))
-    webview.create_window("ã‚¶ã‚­Cards", f"http://127.0.0.1:{srv.server_port}/", width=1280, height=800,
+    webview.create_window("ザキCards", f"http://127.0.0.1:{srv.server_port}/", width=1280, height=800,
                           fullscreen=WINDOW["full"], background_color="#000000")
     webview.start(icon=str(RES_DIR / "assets" / "icon.ico"))
     set_awake(False)
