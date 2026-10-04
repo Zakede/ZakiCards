@@ -1,0 +1,1089 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ザキCards</title>
+<link rel="icon" href="/assets/icon.png">
+<style>
+  :root {
+    --accent: #F5A9C3;
+    --accent-deep: color-mix(in srgb, var(--accent) 42%, #000);
+    --accent-ghost: color-mix(in srgb, var(--accent) 11%, #000);
+    --accent-glow: color-mix(in srgb, var(--accent) 55%, transparent);
+    --dim: #737b7a;
+    --line: #1c2020;
+    --panel: #060808;
+    --text: #d2d8d7;
+    --card-text: #d6dcdb;
+    --bright: .7;
+    --ui: 1.1;
+    --card-size: 1;
+    --card-width: 82vw;
+    --card-font: "Yu Gothic UI", "Meiryo", "Segoe UI", system-ui, sans-serif;
+    --speed: 1;
+    --ease-out: cubic-bezier(.16, 1, .3, 1);
+    --spring: cubic-bezier(.34, 1.56, .64, 1);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #000; color: var(--text);
+    font-family: "Yu Gothic UI", "Meiryo", "Segoe UI", system-ui, sans-serif; font-size: 16px; overflow: hidden; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  ::selection { background: var(--accent-deep); }
+  body.noanim *, body.noanim *::before, body.noanim *::after { animation: none !important; transition: none !important; }
+
+  /* ---------------- stars (dim, always drifting: no static pixels) ---------------- */
+  #stars { position: fixed; inset: 0; pointer-events: none; opacity: .5; transition: opacity 1s; }
+  body.playing #stars { opacity: 0; }
+
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+  .rise { animation: rise .8s var(--ease-out) both; animation-delay: calc(var(--i, 0) * 70ms); }
+
+  /* ---------------- logo (inline SVG, follows the accent colour) ---------------- */
+  .logo { position: relative; width: 66px; height: 66px; flex: none; color: var(--accent); animation: float 5s ease-in-out infinite; }
+  .logo svg { width: 100%; height: 100%; display: block; overflow: visible; filter: drop-shadow(0 0 14px color-mix(in srgb, var(--accent) 25%, transparent)); }
+  .logo .glint { position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(115deg, transparent 38%, rgba(255,255,255,.65) 47%, transparent 56%);
+    background-size: 300% 100%; background-position: 100% 0;
+    -webkit-mask: var(--logo-mask) center / contain no-repeat; mask: var(--logo-mask) center / contain no-repeat;
+    animation: glint 6s ease-in-out infinite 1.5s; }
+  @keyframes float { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-5px) rotate(3deg); } }
+  @keyframes glint { 0%, 70% { background-position: 100% 0; } 85%, 100% { background-position: -50% 0; } }
+  .logo:hover { animation-duration: 1.2s; }
+
+  /* ---------------- menu ---------------- */
+  #menu { position: relative; height: calc(100% / var(--ui)); zoom: var(--ui); display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 44px;
+    padding: 36px 52px; max-width: 1340px; margin: 0 auto; transition: opacity .5s, transform .6s var(--ease-out), filter .5s; }
+  #menu.leaving { opacity: 0; transform: scale(.97); filter: blur(8px); pointer-events: none; }
+  .brand { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+  .brand > div:nth-child(2) { flex: 1; }
+  h1 { font-weight: 700; letter-spacing: .01em; margin: 0; font-size: 34px; }
+  h1 span { color: var(--accent); }
+  .sub { color: var(--dim); margin: 2px 0 0; font-size: 15px; }
+  .topctl { display: flex; gap: 8px; align-self: flex-start; align-items: center; }
+  .lang { display: flex; border: 1px solid var(--line); border-radius: 99px; padding: 2px; }
+  .lang button { border: 0; background: none; color: var(--dim); font-size: 13px; padding: 4px 11px; border-radius: 99px; cursor: pointer; transition: all .2s; }
+  .lang button.on { background: var(--accent-ghost); color: var(--accent); }
+  .gear { width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 50%; background: none; color: var(--dim); cursor: pointer; display: grid; place-items: center; transition: all .3s; }
+  .gear:hover { color: var(--accent); border-color: var(--accent-deep); transform: rotate(60deg); }
+  .gear svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; }
+  .col { display: flex; flex-direction: column; min-height: 0; }
+  .head { display: flex; align-items: center; gap: 8px; margin: 14px 0 6px; }
+  .head:first-child { margin-top: 0; }
+  .head h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .14em; color: var(--dim); margin: 0; flex: 1; font-weight: 600; }
+  .link { background: none; border: 0; color: var(--dim); cursor: pointer; font-size: 14px; padding: 5px 9px; border-radius: 7px; transition: color .2s, background .2s; }
+  .link:hover { color: var(--accent); background: var(--accent-ghost); }
+  .link.solid { border: 1px solid var(--line); }
+  #reload.spin span { display: inline-block; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #lists { flex: 1; overflow-y: auto; scrollbar-color: #222 #000; padding-right: 6px; }
+  .tree { border-top: 1px solid var(--line); padding: 4px 0; }
+  .row { display: flex; align-items: center; gap: 9px; padding: 9px 9px; border-radius: 9px; cursor: pointer; user-select: none; font-size: 16px;
+    transition: background .2s, transform .2s var(--ease-out); animation: rise .5s var(--ease-out) both; animation-delay: calc(var(--i, 0) * 25ms); }
+  .row:hover { background: #0a0d0d; transform: translateX(3px); }
+  .row .tw { width: 22px; text-align: center; color: var(--dim); font-size: 14px; flex: none; transition: transform .25s var(--ease-out), color .2s; }
+  .row .tw.open { transform: rotate(90deg); }
+  .row .tw:hover { color: var(--accent); }
+  .row .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .ct { color: var(--dim); font-size: 14px; font-variant-numeric: tabular-nums; }
+  .row .tag { font-size: 10px; color: var(--dim); border: 1px solid var(--line); border-radius: 99px; padding: 0 7px; text-transform: uppercase; letter-spacing: .06em; }
+  .row .edit { opacity: 0; border: 0; background: none; color: var(--dim); cursor: pointer; padding: 2px 6px; border-radius: 6px; transition: opacity .2s, color .2s; }
+  .row:hover .edit { opacity: 1; }
+  .row .edit:hover { color: var(--accent); }
+  .row.inherited { opacity: .55; }
+  .box { width: 18px; height: 18px; border: 1.5px solid #3a4241; border-radius: 5px; flex: none; display: grid; place-items: center;
+    transition: background .2s, border-color .2s, transform .3s var(--spring); }
+  .row.on .box, .row.inherited .box { border-color: var(--accent); background: var(--accent); }
+  .row.on .box { transform: scale(1.08); }
+  .row.on .box::after, .row.inherited .box::after { content: ""; width: 8px; height: 4px; border: 2px solid #000; border-top: 0; border-right: 0;
+    transform: rotate(-45deg) translate(1px, -1px); animation: tick .3s var(--spring); }
+  @keyframes tick { from { transform: rotate(-45deg) translate(1px, -1px) scale(0); } }
+  .empty { color: var(--dim); font-size: 14px; padding: 10px 8px; line-height: 1.6; }
+  .empty b { color: var(--text); font-weight: 600; }
+
+  .side { border-left: 1px solid var(--line); padding-left: 40px; overflow-y: auto; overflow-x: hidden; scrollbar-color: #222 #000; }
+  .field { margin-bottom: 16px; }
+  .field > label { display: block; font-size: 14px; color: var(--dim); margin-bottom: 7px; }
+  .field > label small { color: #4a5150; }
+  .times { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .times div { background: var(--panel); border: 1px solid var(--line); border-radius: 11px; padding: 8px 10px; transition: border-color .2s; }
+  .times div:focus-within { border-color: var(--accent-deep); }
+  .times small { display: block; color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+  .times input { width: 100%; background: none; border: 0; font-size: 24px; outline: none; padding: 0; }
+  .times input::-webkit-inner-spin-button { opacity: .3; }
+  .presets { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .chip { border: 1px solid var(--line); background: none; color: var(--dim); border-radius: 99px; padding: 4px 11px; font-size: 13px; cursor: pointer; transition: all .2s; }
+  .chip:hover { border-color: var(--accent-deep); color: var(--accent); }
+  .chip.on { border-color: var(--accent); color: var(--accent); }
+  select { width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 11px; padding: 10px 11px; outline: none; }
+  select option { background: #000; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .toggle { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; margin-bottom: 11px; font-size: 15px; }
+  .toggle input { accent-color: var(--accent); margin-top: 4px; width: 16px; height: 16px; }
+  .toggle small { display: block; color: var(--dim); font-size: 13px; }
+  #start { position: relative; overflow: hidden; width: 100%; padding: 15px; border-radius: 13px; border: 0; background: var(--accent); color: #000;
+    font-weight: 700; font-size: 17px; cursor: pointer; margin-top: 6px; transition: transform .2s var(--spring), box-shadow .3s, background .3s; }
+  #start:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 8px 30px -8px var(--accent-glow); }
+  #start:not(:disabled):active { transform: scale(.98); }
+  #start::after { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 35%, rgba(255,255,255,.45) 50%, transparent 65%);
+    transform: translateX(-100%); }
+  #start:not(:disabled):hover::after { transform: translateX(100%); transition: transform .8s var(--ease-out); }
+  #start:disabled { background: #141918; color: var(--dim); cursor: default; }
+  #summary { color: var(--dim); font-size: 14px; text-align: center; margin-top: 8px; min-height: 20px; }
+  #summary.good { color: var(--accent); }
+  .keys { color: var(--dim); font-size: 13px; line-height: 1.9; margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
+  kbd { border: 1px solid #2a302f; border-radius: 4px; padding: 0 5px; font-family: inherit; font-size: 12px; }
+  .err { color: #e08a7a; }
+  .ver { color: #2c3332; font-size: 12px; margin-top: 12px; }
+
+  /* ---------------- sheets: deck editor + settings ---------------- */
+  .modal { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: rgba(0,0,0,.72);
+    opacity: 0; pointer-events: none; transition: opacity .3s; }
+  .modal.open { opacity: 1; pointer-events: auto; }
+  .sheet { zoom: var(--ui); width: min(780px, 92vw); max-height: calc(88vh / var(--ui)); display: flex; flex-direction: column; gap: 12px; padding: 24px;
+    background: #050707; border: 1px solid #1d2323; border-radius: 18px; transform: translateY(20px) scale(.97); transition: transform .45s var(--spring); }
+  .modal.open .sheet { transform: none; }
+  .sheet h3 { margin: 0; font-size: 20px; display: flex; align-items: center; gap: 10px; }
+  .sheet h3 .x { margin-left: auto; }
+  .sheet input[type=text], .sheet textarea { width: 100%; background: #000; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; outline: none; transition: border-color .2s; }
+  .sheet input[type=text]:focus, .sheet textarea:focus { border-color: var(--accent-deep); }
+  .sheet textarea { min-height: 300px; resize: vertical; font-size: 16px; line-height: 1.6; scrollbar-color: #222 #000; }
+  .sheet .hint { color: var(--dim); font-size: 13px; line-height: 1.6; }
+  .sheet .hint code { color: var(--accent); }
+  .sheet .btns { display: flex; gap: 8px; align-items: center; }
+  .sheet .btns .grow { flex: 1; color: var(--dim); font-size: 14px; }
+  .btn { border: 1px solid var(--line); background: none; border-radius: 10px; padding: 8px 16px; cursor: pointer; transition: all .2s; }
+  .btn:hover { border-color: var(--accent-deep); color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 700; }
+  .btn.primary:hover { color: #000; box-shadow: 0 6px 24px -8px var(--accent-glow); }
+  .btn.danger:hover { border-color: #6b3a33; color: #e08a7a; }
+
+  #setSheet { width: min(860px, 94vw); }
+  .tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--line); padding-bottom: 10px; }
+  .tabs button { border: 0; background: none; color: var(--dim); padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 15px; transition: all .2s; }
+  .tabs button.on { background: var(--accent-ghost); color: var(--accent); }
+  .panes { overflow-y: auto; scrollbar-color: #222 #000; padding-right: 6px; min-height: 340px; }
+  .pane { display: none; }
+  .pane.on { display: block; animation: rise .4s var(--ease-out) both; }
+  .set { display: grid; grid-template-columns: 210px 1fr 64px; gap: 14px; align-items: center; padding: 11px 0; border-bottom: 1px solid #0f1212; }
+  .set > div:first-child { font-size: 15px; }
+  .set > div:first-child small { display: block; color: var(--dim); font-size: 12px; margin-top: 2px; }
+  .set .val { color: var(--dim); font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .seg button { flex: 1; border: 0; background: none; color: var(--dim); padding: 7px 8px; cursor: pointer; font-size: 14px; transition: all .2s; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button.on { background: var(--accent-ghost); color: var(--accent); }
+  .swatches { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .sw { width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform .2s var(--spring), border-color .2s; }
+  .sw:hover { transform: scale(1.12); }
+  .sw.on { border-color: #fff; }
+  .swatches input[type=color] { width: 34px; height: 34px; border: 0; background: none; padding: 0; cursor: pointer; }
+  .prevcard { margin-top: 14px; border: 1px solid var(--line); border-radius: 12px; height: 150px; display: grid; place-items: center; overflow: hidden; background: #000; }
+  .prevcard div { font-family: var(--card-font); color: var(--card-text); opacity: var(--bright); text-align: var(--card-align, center); width: 86%; line-height: 1.4; }
+  .prevcard b { color: var(--accent); }
+
+  /* ---------------- player ---------------- */
+  #player { position: fixed; inset: 0; background: #000; display: none; cursor: none; user-select: none; }
+  #player.cursor { cursor: default; }
+  #stage { position: absolute; left: 50%; top: 50%; width: var(--card-width); max-height: 86vh;
+    transform: translate(-50%, -50%); text-align: var(--card-align, center); line-height: 1.45; opacity: var(--bright);
+    font-family: var(--card-font); color: var(--card-text); transition: opacity .3s; }
+  #content > * { animation: cardIn calc(.9s * var(--speed)) var(--ease-out) both; }
+  #content > *:nth-child(2) { animation-delay: calc(.08s * var(--speed)); } #content > *:nth-child(3) { animation-delay: calc(.16s * var(--speed)); }
+  #content > *:nth-child(4) { animation-delay: calc(.24s * var(--speed)); } #content > *:nth-child(5) { animation-delay: calc(.32s * var(--speed)); }
+  #content > *:nth-child(n+6) { animation-delay: calc(.4s * var(--speed)); }
+  @keyframes cardIn { from { opacity: 0; transform: translateY(16px); filter: blur(10px); } to { opacity: 1; transform: none; filter: none; } }
+  #content.out > * { animation: cardOut calc(.7s * var(--speed)) ease-in both; }
+  @keyframes cardOut { to { opacity: 0; transform: translateY(-8px) scale(.98); filter: blur(10px); } }
+  #content b, #content strong, #content .cloze { color: var(--accent); font-weight: 600; }
+  #content .cloze { border-bottom: 2px solid var(--accent-deep); }
+  #content hr { border: 0; height: 1px; width: 40%; margin: .6em auto; background: linear-gradient(90deg, transparent, #2a2f2f, transparent); }
+  #content img { max-width: 60vw; max-height: 45vh; border-radius: 8px; }
+  #content rt { font-size: .45em; opacity: .7; }
+  #content.answer { opacity: .9; }
+  #bar { height: 2px; width: 120px; margin: 1.4em auto 0; background: #121616; overflow: hidden; border-radius: 2px; transition: opacity .4s; }
+  #bar i { display: block; height: 100%; background: var(--accent-deep); width: 100%; transform-origin: left; }
+  #content.out + #bar, body.nobar #bar { opacity: 0; }
+  #hold { position: absolute; left: 50%; bottom: -3.2em; transform: translateX(-50%); font-size: 13px; letter-spacing: .25em; color: var(--accent-deep);
+    font-family: "Yu Gothic UI", sans-serif; opacity: 0; transition: opacity .3s; white-space: nowrap; }
+  #player.holding #hold { opacity: 1; }
+  #player.holding #bar i { background: #2a3030; }
+  #clock { position: fixed; color: #3a4241; font-size: 7vh; font-weight: 300; letter-spacing: .04em; font-variant-numeric: tabular-nums;
+    opacity: 0; transition: opacity 1.2s; pointer-events: none; }
+  #clock small { display: block; font-size: .28em; letter-spacing: .2em; text-align: center; color: #2c3332; }
+  #clock.show { opacity: var(--bright); }
+  #toast { position: fixed; left: 50%; bottom: 30px; transform: translate(-50%, 10px); color: #6b7472; font-size: 14px;
+    opacity: 0; transition: opacity .35s, transform .35s var(--ease-out); pointer-events: none; }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+  #paused { position: fixed; color: #4c5453; font-size: 13px; letter-spacing: .3em; display: none; animation: breathe 3s ease-in-out infinite; }
+  @keyframes breathe { 50% { opacity: .35; } }
+
+  /* ---------------- drop-down top bar ---------------- */
+  #topzone { position: fixed; left: 0; right: 0; top: 0; height: 18px; z-index: 5; }
+  #topbar { position: fixed; left: 50%; top: 14px; z-index: 6; display: flex; align-items: center; gap: 6px; zoom: var(--ui);
+    padding: 8px 10px 8px 12px; border-radius: 16px; background: rgba(8, 11, 11, .94); border: 1px solid #1d2323;
+    box-shadow: 0 20px 50px -20px rgba(0,0,0,.9); backdrop-filter: blur(12px);
+    transform: translate(-50%, -140%); opacity: 0; transition: transform .55s var(--spring), opacity .3s; cursor: default; white-space: nowrap; }
+  #topbar.open { transform: translate(-50%, 0); opacity: 1; }
+  #topbar .logo { width: 30px; height: 30px; animation-duration: 3s; }
+  #topbar .info { padding: 0 10px 0 4px; min-width: 150px; }
+  #topbar .info b { display: block; font-size: 14px; font-weight: 600; color: #b9c1c0; max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+  #topbar .info small { color: var(--dim); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .sep { width: 1px; height: 26px; background: #1d2323; margin: 0 4px; }
+  .ib { width: 36px; height: 36px; display: grid; place-items: center; border: 0; background: none; color: #8b9493; border-radius: 10px; cursor: pointer;
+    transition: background .2s, color .2s, transform .2s var(--spring); }
+  .ib:hover { background: var(--accent-ghost); color: var(--accent); transform: translateY(-1px); }
+  .ib:active { transform: scale(.92); }
+  .ib.on { color: var(--accent); }
+  .ib svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .phase { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 2px 6px; border-radius: 9px; transition: background .3s; }
+  .phase.now { background: var(--accent-ghost); }
+  .phase small { font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: .08em; }
+  .phase.now small { color: var(--accent); }
+  .step { display: flex; align-items: center; gap: 2px; }
+  .step button { width: 22px; height: 24px; border: 0; background: none; color: #59625f; cursor: pointer; border-radius: 6px; font-size: 15px; line-height: 1; }
+  .step button:hover { color: var(--accent); background: var(--accent-ghost); }
+  .step span { min-width: 28px; text-align: center; font-size: 15px; font-variant-numeric: tabular-nums; }
+  .bright { display: flex; align-items: center; gap: 6px; color: #59625f; padding: 0 4px; }
+  .bright input { width: 80px; }
+</style>
+</head>
+<body>
+<canvas id="stars"></canvas>
+
+<div id="menu">
+  <div class="col">
+    <div class="brand rise">
+      <div class="logo" data-logo></div>
+      <div><h1>ザキ<span>Cards</span></h1><p class="sub" data-i="tagline"></p></div>
+      <div class="topctl">
+        <div class="lang"><button data-lang="en">EN</button><button data-lang="ja">日本語</button></div>
+        <button class="gear" id="openSettings" data-i-title="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg></button>
+      </div>
+    </div>
+    <div id="lists" class="rise" style="--i:1">
+      <div class="head">
+        <h2 data-i="myDecks"></h2>
+        <button class="link solid" id="newDeck" data-i="newDeck"></button>
+        <button class="link solid" id="import" data-i="import" data-i-title="importTitle"></button>
+      </div>
+      <div class="tree" id="localTree"></div>
+      <div class="head">
+        <h2>Anki</h2>
+        <select id="profile" style="width:auto;padding:4px 8px;font-size:13px"></select>
+        <button class="link" id="reload" data-i-title="reloadTitle"><span>↻</span> <em data-i="reload" style="font-style:normal"></em></button>
+        <button class="link" id="none" data-i="clearAll"></button>
+      </div>
+      <div class="tree" id="ankiTree"><p class="empty" data-i="loading"></p></div>
+    </div>
+  </div>
+
+  <div class="side">
+    <div class="field rise" style="--i:2">
+      <label data-i="secs"></label>
+      <div class="times">
+        <div><small data-i="question"></small><input id="q" type="number" min="0" max="600"></div>
+        <div><small data-i="answer"></small><input id="a" type="number" min="0" max="600"></div>
+        <div><small data-i="black"></small><input id="black" type="number" min="0" max="600"></div>
+      </div>
+      <div class="presets">
+        <button class="chip" data-p="5,5,10"><span data-i="pVocab"></span> 5·5·10</button>
+        <button class="chip" data-p="5,8,10"><span data-i="pSentences"></span> 5·8·10</button>
+        <button class="chip" data-p="8,12,5"><span data-i="pSlow"></span> 8·12·5</button>
+      </div>
+    </div>
+    <div class="field rise" style="--i:3">
+      <label><span data-i="whichCards"></span> <small data-i="ankiOnly"></small></label>
+      <select id="filter">
+        <option value="all" data-i="fAll"></option>
+        <option value="learned" data-i="fLearned"></option>
+        <option value="due" data-i="fDue"></option>
+        <option value="new" data-i="fNew"></option>
+      </select>
+    </div>
+    <div class="field rise" style="--i:4">
+      <label data-i="order"></label>
+      <select id="order">
+        <option value="shuffle" data-i="oShuffle"></option>
+        <option value="inorder" data-i="oDeck"></option>
+      </select>
+    </div>
+    <div class="field rise" style="--i:5">
+      <label><span data-i="brightness"></span> <span id="bval"></span></label>
+      <input id="brightness" type="range" min="20" max="100">
+    </div>
+    <div class="rise" style="--i:6">
+      <label class="toggle"><input type="checkbox" id="shift">
+        <span><span data-i="shift"></span><small data-i="shiftSub"></small></span></label>
+      <label class="toggle"><input type="checkbox" id="clockOn">
+        <span><span data-i="clock"></span><small data-i="clockSub"></small></span></label>
+      <label class="toggle"><input type="checkbox" id="awake">
+        <span><span data-i="awake"></span><small data-i="awakeSub"></small></span></label>
+    </div>
+    <div class="rise" style="--i:7">
+      <button id="start" disabled data-i="start"></button>
+      <div id="summary"></div>
+      <div class="keys" id="keys"></div>
+      <div class="ver">ザキCards <span id="ver"></span></div>
+    </div>
+  </div>
+</div>
+
+<!-- deck editor -->
+<div class="modal" id="modal">
+  <div class="sheet">
+    <h3 id="mTitle"></h3>
+    <input type="text" id="mName" maxlength="80" data-i-ph="deckName">
+    <textarea id="mText" spellcheck="false" placeholder="食べる | to eat&#10;飲む | to drink&#10;日本語 | Japanese (language)"></textarea>
+    <div class="hint" id="mHint" data-i-html="editorHint"></div>
+    <div class="btns">
+      <button class="btn danger" id="mDelete" data-i="deleteDeck"></button>
+      <span class="grow" id="mCount"></span>
+      <button class="btn" id="mCancel" data-i="cancel"></button>
+      <button class="btn primary" id="mSave" data-i="save"></button>
+    </div>
+  </div>
+</div>
+
+<!-- settings -->
+<div class="modal" id="settings">
+  <div class="sheet" id="setSheet">
+    <h3><span data-i="settings"></span><button class="btn x" id="setClose" data-i="done"></button></h3>
+    <div class="tabs">
+      <button data-tab="look" class="on" data-i="tLook"></button>
+      <button data-tab="display" data-i="tDisplay"></button>
+      <button data-tab="play" data-i="tPlay"></button>
+      <button data-tab="window" data-i="tWindow"></button>
+    </div>
+    <div class="panes">
+      <div class="pane on" data-pane="look">
+        <div class="set"><div><span data-i="sAccent"></span><small data-i="sAccentSub"></small></div>
+          <div class="swatches" id="swatches"></div><div class="val" id="vAccent"></div></div>
+        <div class="set"><div><span data-i="sTone"></span><small data-i="sToneSub"></small></div>
+          <div class="seg" data-set="tone"><button data-v="neutral" data-i="toneNeutral"></button><button data-v="warm" data-i="toneWarm"></button><button data-v="cool" data-i="toneCool"></button></div><div></div></div>
+        <div class="set"><div data-i="brightness"></div><input type="range" min="20" max="100" data-set="brightness"><div class="val" data-val="brightness"></div></div>
+        <div class="prevcard"><div id="prevText"><b>決める</b><br>to decide · きめる</div></div>
+      </div>
+      <div class="pane" data-pane="display">
+        <div class="set"><div><span data-i="sUi"></span><small data-i="sUiSub"></small></div><input type="range" min="80" max="160" step="5" data-set="ui_scale"><div class="val" data-val="ui_scale"></div></div>
+        <div class="set"><div><span data-i="sCard"></span><small data-i="sCardSub"></small></div><input type="range" min="50" max="200" step="5" data-set="card_size"><div class="val" data-val="card_size"></div></div>
+        <div class="set"><div><span data-i="sWidth"></span><small data-i="sWidthSub"></small></div><input type="range" min="40" max="96" step="2" data-set="card_width"><div class="val" data-val="card_width"></div></div>
+        <div class="set"><div data-i="sFont"></div>
+          <div class="seg" data-set="font"><button data-v="gothic" data-i="fontGothic"></button><button data-v="mincho" data-i="fontMincho"></button><button data-v="ud" data-i="fontUd"></button></div><div></div></div>
+        <div class="set"><div data-i="sAlign"></div>
+          <div class="seg" data-set="align"><button data-v="center" data-i="alignCenter"></button><button data-v="left" data-i="alignLeft"></button></div><div></div></div>
+        <div class="prevcard"><div id="prevText2"><b>決める</b><br>to decide · きめる</div></div>
+      </div>
+      <div class="pane" data-pane="play">
+        <div class="set"><div><span data-i="sShift"></span><small data-i="sShiftSub"></small></div><input type="range" min="0" max="15" data-set="shift_amount"><div class="val" data-val="shift_amount"></div></div>
+        <div class="set"><div data-i="sAnim"></div>
+          <div class="seg" data-set="anim"><button data-v="smooth" data-i="animSmooth"></button><button data-v="fast" data-i="animFast"></button><button data-v="none" data-i="animNone"></button></div><div></div></div>
+        <div class="set"><div data-i="sEnd"></div>
+          <div class="seg" data-set="on_end"><button data-v="loop" data-i="endLoop"></button><button data-v="stop" data-i="endStop"></button></div><div></div></div>
+        <div class="set"><div><span data-i="sSleep"></span><small data-i="sSleepSub"></small></div><input type="range" min="0" max="180" step="5" data-set="sleep_min"><div class="val" data-val="sleep_min"></div></div>
+        <div class="set"><div data-i="sProgress"></div>
+          <div class="seg" data-set="progress"><button data-v="true" data-i="on"></button><button data-v="false" data-i="off"></button></div><div></div></div>
+        <div class="set"><div data-i="sClock24"></div>
+          <div class="seg" data-set="clock24"><button data-v="true">24h</button><button data-v="false">12h</button></div><div></div></div>
+      </div>
+      <div class="pane" data-pane="window">
+        <div class="set"><div><span data-i="sStartFull"></span><small data-i="sStartFullSub"></small></div>
+          <div class="seg" data-set="start_full"><button data-v="true" data-i="on"></button><button data-v="false" data-i="off"></button></div><div></div></div>
+        <div class="set"><div><span data-i="sPlayFull"></span><small data-i="sPlayFullSub"></small></div>
+          <div class="seg" data-set="play_full"><button data-v="true" data-i="on"></button><button data-v="false" data-i="off"></button></div><div></div></div>
+        <div class="set"><div data-i="sFullNow"></div><div><button class="btn" id="fullNow" data-i="toggleFull"></button></div><div></div></div>
+        <div class="set"><div><span data-i="sReset"></span><small data-i="sResetSub"></small></div><div><button class="btn danger" id="resetAll" data-i="reset"></button></div><div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="player">
+  <div id="stage"><div id="content"></div><div id="bar"><i></i></div><div id="hold" data-i="holding"></div></div>
+  <div id="clock"></div>
+  <div id="toast"></div>
+  <div id="paused" data-i="paused"></div>
+  <div id="topzone"></div>
+  <div id="topbar">
+    <div class="logo" data-logo></div>
+    <div class="info"><b id="tbDeck">—</b><small id="tbCount"></small></div>
+    <div class="sep"></div>
+    <button class="ib" data-act="prev" data-i-title="tPrev"><svg viewBox="0 0 24 24"><path d="M19 20 9 12l10-8v16ZM5 19V5"/></svg></button>
+    <button class="ib" data-act="pause" data-i-title="tPause"><svg id="pauseIcon" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg></button>
+    <button class="ib" data-act="next" data-i-title="tNext"><svg viewBox="0 0 24 24"><path d="m5 4 10 8-10 8V4ZM19 5v14"/></svg></button>
+    <button class="ib" data-act="star" id="starBtn" data-i-title="tStar"><svg viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9L12 3Z"/></svg></button>
+    <div class="sep"></div>
+    <div class="phase" id="phQ"><small data-i="question"></small><div class="step"><button data-t="q" data-d="-1">−</button><span id="tq"></span><button data-t="q" data-d="1">+</button></div></div>
+    <div class="phase" id="phA"><small data-i="answer"></small><div class="step"><button data-t="a" data-d="-1">−</button><span id="ta"></span><button data-t="a" data-d="1">+</button></div></div>
+    <div class="phase" id="phB"><small data-i="black"></small><div class="step"><button data-t="black" data-d="-1">−</button><span id="tb"></span><button data-t="black" data-d="1">+</button></div></div>
+    <div class="sep"></div>
+    <div class="bright" data-i-title="tBright"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><input id="tbBright" type="range" min="20" max="100"></div>
+    <div class="step" data-i-title="tSize"><button data-size="-10">A−</button><button data-size="10">A+</button></div>
+    <div class="sep"></div>
+    <button class="ib" data-act="full" data-i-title="tFull"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+    <button class="ib" data-act="menu" data-i-title="tMenu"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg></button>
+    <button class="ib" data-act="quit" data-i-title="tQuit"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+let S = {}, DEF = null, ANKI = [], LOCAL = [], open = new Set(), animateRows = true, FULL = true;
+const api = (p, body) => fetch(p, body ? { method: 'POST', body: JSON.stringify(body) } : {}).then(r => r.json());
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+const ACCENTS = [
+  ['#F5A9C3', 'Sakura'], ['#71BD4E', 'Leaf'], ['#5BC2B5', 'Miku'], ['#A99BE0', 'Lavender'],
+  ['#F2B84B', 'Amber'], ['#7DB8F2', 'Sky'], ['#F28B82', 'Coral'], ['#E8E4DA', 'Paper'],
+];
+const FONTS = {
+  gothic: '"Yu Gothic UI", "Meiryo", "Segoe UI", system-ui, sans-serif',
+  mincho: '"Yu Mincho", "YuMincho", "MS Mincho", "Hiragino Mincho ProN", serif',
+  ud: '"BIZ UDPGothic", "BIZ UDGothic", "UD Digi Kyokasho N-R", "Yu Gothic UI", sans-serif',
+};
+const TONES = { neutral: '#d6dcdb', warm: '#ecdcc8', cool: '#cfdcec' };
+
+/* ---------------- logo: inline SVG, so it never shows a broken image ---------------- */
+fetch('/assets/logo.svg').then(r => r.text()).then(svg => {
+  $$('[data-logo]').forEach(el => { el.innerHTML = svg + '<span class="glint"></span>'; });
+  document.documentElement.style.setProperty('--logo-mask', `url("data:image/svg+xml;utf8,${encodeURIComponent(svg.replace(/currentColor/g, '#000'))}")`);
+});
+
+/* ---------------- language ---------------- */
+const L = {
+  en: {
+    tagline: 'Flashcards on a black screen. Easy on your eyes, easy on your OLED.',
+    myDecks: 'My decks', newDeck: '+ New deck', import: 'Import file', importing: 'Importing…',
+    importTitle: 'Anki .apkg packages, or CSV / TXT word lists', reload: 'reload', reloadTitle: 'Re-read your Anki collection',
+    clearAll: 'clear all', loading: 'Loading your collection…',
+    secs: 'Seconds per phase', question: 'Question', answer: 'Answer', black: 'Black',
+    pVocab: 'Vocab', pSentences: 'Sentences', pSlow: 'Slow',
+    whichCards: 'Which cards', ankiOnly: '(Anki decks)', fAll: 'All cards', fLearned: "Only cards I've studied", fDue: 'Only cards due today', fNew: 'Only new cards',
+    order: 'Order', oShuffle: 'Shuffled', oDeck: 'Deck order', brightness: 'Text brightness',
+    shift: 'Move cards around', shiftSub: 'Each card lands in a slightly different spot, so no pixel stays lit.',
+    clock: 'Clock in the black gap', clockSub: 'A dim clock that drifts to a new spot every time.',
+    awake: 'Keep screen on', awakeSub: 'Stops Windows from sleeping while it runs.',
+    start: 'Start', loadingShort: 'Loading…', pickDeck: 'Pick at least one deck',
+    summary: (n, c) => `${n} deck${n > 1 ? 's' : ''} · ${c} cards`,
+    zeroPhases: 'Set at least one phase above 0 seconds', noMatch: 'No cards match that filter',
+    imported: x => `Imported ${x}`,
+    session: (n, m) => `Nice: ${n} card${n === 1 ? '' : 's'} in ${m} min`,
+    keys: `<kbd>Space</kbd> / <kbd>→</kbd> / click: skip ahead &nbsp; <kbd>←</kbd> previous<br>
+      <b>Hold the mouse</b> on a card to keep it on screen &nbsp; Wheel: next / previous<br>
+      <kbd>Enter</kbd> answer &nbsp; <kbd>P</kbd> pause &nbsp; <kbd>B</kbd> black &nbsp; <kbd>S</kbd> star card<br>
+      <kbd>↑</kbd> <kbd>↓</kbd> brightness &nbsp; <kbd>+</kbd> <kbd>−</kbd> text size &nbsp; <kbd>F</kbd> / double-click fullscreen<br>
+      <kbd>Esc</kbd> menu &nbsp; <kbd>Q</kbd> quit &nbsp; Mouse to the top edge for controls.`,
+    noLocal: 'No decks of your own yet. <b>+ New deck</b> to type one, or <b>Import file</b> for an Anki .apkg or a CSV word list.',
+    noAnki: "Anki isn't installed on this PC. That's fine, use My decks above.", ankiEmpty: 'No cards in this Anki profile.',
+    tags: { apkg: 'apkg', csv: 'list', manual: 'mine', starred: '★' }, edit: 'Edit',
+    newDeckTitle: 'New deck', editDeckTitle: 'Edit deck', deckName: 'Deck name', myDeckDefault: 'My deck',
+    editorHint: 'One card per line: <code>front | back</code>. A tab or <code>;</code> works too, so you can paste straight from a spreadsheet. Extra columns go on the back. <code>\\n</code> = new line.',
+    apkgLocked: 'These cards came from Anki or your stars, so they can only be renamed or deleted here.',
+    deleteDeck: 'Delete deck', deleteSure: 'Click again to delete', cancel: 'Cancel', save: 'Save', done: 'Done',
+    cards: n => `${n} card${n === 1 ? '' : 's'}`,
+    paused: 'PAUSED', holding: 'HOLDING', cardOf: (i, n) => `card ${i} of ${n}`, brightTo: v => `brightness ${v}%`, sizeTo: v => `text size ${v}%`,
+    starred: n => `★ starred (${n} in Starred)`, already: 'already starred', sleepDone: 'Sleep timer: stopped',
+    days: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+    tPrev: 'Previous card (←)', tPause: 'Pause (P)', tNext: 'Skip ahead (Space)', tStar: 'Star this card (S)', tBright: 'Brightness (↑ ↓)',
+    tSize: 'Text size (+ −)', tFull: 'Fullscreen (F)', tMenu: 'Back to menu (Esc)', tQuit: 'Quit (Q)',
+    settings: 'Settings', tLook: 'Colours', tDisplay: 'Size & text', tPlay: 'Playback', tWindow: 'Window',
+    sAccent: 'Accent colour', sAccentSub: 'Logo, highlights and buttons', sTone: 'Card text tone', sToneSub: 'Warm is easier at night',
+    toneNeutral: 'Neutral', toneWarm: 'Warm', toneCool: 'Cool',
+    sUi: 'Menu size', sUiSub: 'Buttons, lists and text in menus', sCard: 'Card text size', sCardSub: 'How big cards are on screen',
+    sWidth: 'Card width', sWidthSub: 'How much of the screen a card can use', sFont: 'Card font',
+    fontGothic: 'Gothic', fontMincho: 'Mincho 明朝', fontUd: 'UD (easy read)', sAlign: 'Text alignment', alignCenter: 'Center', alignLeft: 'Left',
+    sShift: 'Card movement', sShiftSub: 'How far cards wander (0 = never)', sAnim: 'Animations', animSmooth: 'Smooth', animFast: 'Fast', animNone: 'Off',
+    sEnd: 'When the cards run out', endLoop: 'Shuffle & loop', endStop: 'Stop', sSleep: 'Sleep timer', sSleepSub: 'Stop and let the screen sleep after… (0 = off)',
+    sProgress: 'Timer line under the card', sClock24: 'Clock format', on: 'On', off: 'Off',
+    sStartFull: 'Open in fullscreen', sStartFullSub: 'Applies next time you open the app', sPlayFull: 'Fullscreen while playing', sPlayFullSub: 'Goes fullscreen on Start, back on Esc',
+    sFullNow: 'Fullscreen now', toggleFull: 'Toggle (F)', sReset: 'Reset all settings', sResetSub: 'Your decks are kept', reset: 'Reset', min: 'min', never: 'off',
+  },
+  ja: {
+    tagline: '黒い画面で単語カード。目にもOLEDにもやさしい。',
+    myDecks: 'マイデッキ', newDeck: '+ 新しいデッキ', import: 'ファイルを読み込む', importing: '読み込み中…',
+    importTitle: 'Ankiの.apkg、またはCSV / TXTの単語リスト', reload: '再読み込み', reloadTitle: 'Ankiのデータを読み直す',
+    clearAll: 'すべて解除', loading: 'コレクションを読み込み中…',
+    secs: '表示時間（秒）', question: '問題', answer: '答え', black: '黒画面',
+    pVocab: '単語', pSentences: '例文', pSlow: 'ゆっくり',
+    whichCards: '対象のカード', ankiOnly: '（Ankiデッキのみ）', fAll: 'すべてのカード', fLearned: '学習済みのカードのみ', fDue: '今日の復習カードのみ', fNew: '新しいカードのみ',
+    order: '順番', oShuffle: 'シャッフル', oDeck: 'デッキの順番', brightness: '文字の明るさ',
+    shift: 'カードの位置をずらす', shiftSub: '毎回少しずつ位置を変えて、焼き付きを防ぎます。',
+    clock: '黒画面に時計を表示', clockSub: '暗めの時計が毎回ちがう場所に出ます。',
+    awake: '画面をつけたままにする', awakeSub: '再生中はWindowsのスリープを止めます。',
+    start: 'スタート', loadingShort: '読み込み中…', pickDeck: 'デッキを1つ以上選んでください',
+    summary: (n, c) => `${n}デッキ · ${c}枚`,
+    zeroPhases: 'どれか1つは0秒より長くしてください', noMatch: '条件に合うカードがありません',
+    imported: x => `${x} を読み込みました`,
+    session: (n, m) => `おつかれさま：${m}分で${n}枚`,
+    keys: `<kbd>Space</kbd> / <kbd>→</kbd> / クリック：次へ &nbsp; <kbd>←</kbd> 前へ<br>
+      カードを<b>長押し</b>すると表示したまま止まります &nbsp; ホイール：前後のカード<br>
+      <kbd>Enter</kbd> 答え &nbsp; <kbd>P</kbd> 一時停止 &nbsp; <kbd>B</kbd> 黒画面 &nbsp; <kbd>S</kbd> スター<br>
+      <kbd>↑</kbd> <kbd>↓</kbd> 明るさ &nbsp; <kbd>+</kbd> <kbd>−</kbd> 文字サイズ &nbsp; <kbd>F</kbd> / ダブルクリック 全画面<br>
+      <kbd>Esc</kbd> メニュー &nbsp; <kbd>Q</kbd> 終了 &nbsp; 画面の上端にマウスで操作バー`,
+    noLocal: '自分のデッキはまだありません。<b>+ 新しいデッキ</b>で作るか、<b>ファイルを読み込む</b>でAnkiの.apkgやCSVを追加できます。',
+    noAnki: 'このPCにはAnkiが入っていません。上のマイデッキを使えます。', ankiEmpty: 'このAnkiプロフィールにはカードがありません。',
+    tags: { apkg: 'apkg', csv: 'リスト', manual: '自作', starred: '★' }, edit: '編集',
+    newDeckTitle: '新しいデッキ', editDeckTitle: 'デッキを編集', deckName: 'デッキ名', myDeckDefault: 'マイデッキ',
+    editorHint: '1行に1枚：<code>表 | 裏</code>。タブや<code>;</code>でも区切れるので、表計算ソフトからそのまま貼り付けできます。3列目以降は裏に表示。<code>\\n</code> = 改行。',
+    apkgLocked: 'このデッキのカードはAnkiまたはスターから来ているため、ここでは名前の変更と削除のみできます。',
+    deleteDeck: 'デッキを削除', deleteSure: 'もう一度押すと削除', cancel: 'キャンセル', save: '保存', done: '完了',
+    cards: n => `${n}枚`,
+    paused: '一時停止', holding: '長押し中', cardOf: (i, n) => `${n}枚中 ${i}枚目`, brightTo: v => `明るさ ${v}%`, sizeTo: v => `文字サイズ ${v}%`,
+    starred: n => `★ スターに追加（${n}枚）`, already: 'スター済み', sleepDone: 'スリープタイマーで停止しました',
+    days: ['日', '月', '火', '水', '木', '金', '土'],
+    tPrev: '前のカード (←)', tPause: '一時停止 (P)', tNext: '次へ (Space)', tStar: 'このカードにスター (S)', tBright: '明るさ (↑ ↓)',
+    tSize: '文字サイズ (+ −)', tFull: '全画面 (F)', tMenu: 'メニューに戻る (Esc)', tQuit: '終了 (Q)',
+    settings: '設定', tLook: '色', tDisplay: 'サイズ・文字', tPlay: '再生', tWindow: 'ウィンドウ',
+    sAccent: 'アクセントカラー', sAccentSub: 'ロゴ・強調・ボタンの色', sTone: 'カード文字の色味', sToneSub: '夜は暖色がおすすめ',
+    toneNeutral: 'ふつう', toneWarm: '暖色', toneCool: '寒色',
+    sUi: 'メニューの大きさ', sUiSub: 'ボタン・リスト・文字', sCard: 'カードの文字サイズ', sCardSub: '画面上のカードの大きさ',
+    sWidth: 'カードの幅', sWidthSub: '画面のどれくらいを使うか', sFont: 'カードのフォント',
+    fontGothic: 'ゴシック', fontMincho: '明朝', fontUd: 'UD（読みやすい）', sAlign: '文字の配置', alignCenter: '中央', alignLeft: '左寄せ',
+    sShift: 'カードの移動', sShiftSub: 'どれくらい動かすか（0 = 動かさない）', sAnim: 'アニメーション', animSmooth: 'なめらか', animFast: '速い', animNone: 'なし',
+    sEnd: 'カードが終わったら', endLoop: 'シャッフルして繰り返す', endStop: '止める', sSleep: 'スリープタイマー', sSleepSub: '指定時間後に止めて画面を休ませる（0 = オフ）',
+    sProgress: 'カード下のタイマー線', sClock24: '時計の表示', on: 'オン', off: 'オフ',
+    sStartFull: '全画面で起動', sStartFullSub: '次回の起動から反映', sPlayFull: '再生中は全画面', sPlayFullSub: 'スタートで全画面、Escで元に戻る',
+    sFullNow: '今すぐ全画面', toggleFull: '切り替え (F)', sReset: 'すべての設定をリセット', sResetSub: 'デッキは消えません', reset: 'リセット', min: '分', never: 'オフ',
+  },
+};
+let T = L.en;
+function applyLang(lang) {
+  S.lang = L[lang] ? lang : 'en'; T = L[S.lang];
+  document.documentElement.lang = S.lang;
+  $$('[data-i]').forEach(e => e.textContent = T[e.dataset.i]);
+  $$('[data-i-html]').forEach(e => e.innerHTML = T[e.dataset.iHtml]);
+  $$('[data-i-title]').forEach(e => e.title = T[e.dataset.iTitle]);
+  $$('[data-i-ph]').forEach(e => e.placeholder = T[e.dataset.iPh]);
+  $$('[data-lang]').forEach(b => b.classList.toggle('on', b.dataset.lang === S.lang));
+  $('#keys').innerHTML = T.keys;
+  if (ANKI.length || LOCAL.length) render();
+  syncSettingsUI();
+}
+$$('[data-lang]').forEach(b => b.onclick = () => { applyLang(b.dataset.lang); saveSoon(); });
+
+/* ---------------- look: apply every display setting ---------------- */
+function applyLook() {
+  const r = document.documentElement.style;
+  r.setProperty('--accent', S.accent || '#F5A9C3');
+  r.setProperty('--ui', (S.ui_scale || 110) / 100);
+  r.setProperty('--card-size', (S.card_size || 100) / 100);
+  r.setProperty('--card-width', (S.card_width || 82) + 'vw');
+  r.setProperty('--card-font', FONTS[S.font] || FONTS.gothic);
+  r.setProperty('--card-align', S.align === 'left' ? 'left' : 'center');
+  r.setProperty('--card-text', TONES[S.tone] || TONES.neutral);
+  r.setProperty('--speed', S.anim === 'fast' ? .45 : 1);
+  document.body.classList.toggle('noanim', S.anim === 'none');
+  document.body.classList.toggle('nobar', S.progress === false);
+  setBright(S.brightness ?? 70);
+  if (playing()) fit();
+}
+
+/* ---------------- stars ---------------- */
+(() => {
+  const c = $('#stars'), g = c.getContext('2d'); let pts = [];
+  const size = () => { c.width = innerWidth; c.height = innerHeight;
+    pts = Array.from({ length: 70 }, () => ({ x: Math.random() * c.width, y: Math.random() * c.height, r: Math.random() * 1.2 + .3,
+      v: Math.random() * .15 + .03, t: Math.random() * 6.28 })); };
+  size(); addEventListener('resize', size);
+  (function tick() {
+    if (!document.body.classList.contains('playing') && S.anim !== 'none') {
+      const acc = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#F5A9C3';
+      g.clearRect(0, 0, c.width, c.height);
+      for (const p of pts) {
+        p.y -= p.v; p.x += Math.sin(p.t += .004) * .08; if (p.y < -2) { p.y = c.height + 2; p.x = Math.random() * c.width; }
+        g.globalAlpha = .25 + .35 * Math.abs(Math.sin(p.t * 3)); g.fillStyle = p.r > 1.2 ? acc : '#9aa3a2';
+        g.beginPath(); g.arc(p.x, p.y, p.r, 0, 6.29); g.fill();
+      }
+    }
+    requestAnimationFrame(tick);
+  })();
+})();
+
+/* ---------------- menu ---------------- */
+async function init(profile, reload) {
+  $('#reload').classList.add('spin');
+  const qs = new URLSearchParams();
+  if (profile) qs.set('profile', profile);
+  if (reload) qs.set('reload', 1);
+  const r = await api('/api/init?' + qs);
+  $('#reload').classList.remove('spin');
+  $('#ver').textContent = r.version || '';
+  if (r.error) { $('#ankiTree').innerHTML = `<p class="empty err">${esc(r.error)}</p>`; return; }
+  S = r.settings; ANKI = r.anki; LOCAL = r.local; FULL = r.full;
+  if (!DEF) DEF = { ...S };
+  $('#profile').innerHTML = r.profiles.map(p => `<option ${p === r.profile ? 'selected' : ''}>${esc(p)}</option>`).join('');
+  $('#profile').style.display = r.profiles.length > 1 ? '' : 'none';
+  const keys = new Set([...ANKI.map(d => 'anki:' + d.name), ...LOCAL.map(d => 'local:' + d.id)]);
+  S.decks = (S.decks || []).filter(k => keys.has(k));
+  for (const k of S.decks) if (k.startsWith('anki:'))
+    k.slice(5).split('::').slice(0, -1).reduce((acc, p) => { acc = acc ? acc + '::' + p : p; open.add(acc); return acc; }, '');
+  fillForm(); applyLook(); applyLang(S.lang);
+}
+
+function fillForm() {
+  for (const k of ['q', 'a', 'black', 'filter', 'order']) $('#' + k).value = S[k];
+  $('#shift').checked = S.shift; $('#awake').checked = S.awake; $('#clockOn').checked = S.clock;
+  setBright(S.brightness); markPreset();
+}
+
+const parentOf = n => n.includes('::') ? n.slice(0, n.lastIndexOf('::')) : null;
+const isAncestorSelected = n => { for (let p = parentOf(n); p; p = parentOf(p)) if (S.decks.includes('anki:' + p)) return true; return false; };
+
+function render() {
+  let i = 0;
+  const anim = () => animateRows ? `--i:${i++}` : 'animation:none';
+  $('#localTree').innerHTML = LOCAL.map(d => {
+    const on = S.decks.includes('local:' + d.id);
+    return `<div class="row ${on ? 'on' : ''}" data-k="local:${d.id}" style="${anim()}">
+      <span class="tw"></span><span class="box"></span><span class="nm">${esc(d.name)}</span>
+      <span class="tag">${T.tags[d.source] || ''}</span><span class="ct">${d.count.toLocaleString()}</span>
+      <button class="edit" data-edit="${d.id}" title="${T.edit}">✎</button></div>`;
+  }).join('') || `<p class="empty">${T.noLocal}</p>`;
+  const hasKids = n => ANKI.some(d => parentOf(d.name) === n);
+  const visible = n => { for (let p = parentOf(n); p; p = parentOf(p)) if (!open.has(p)) return false; return true; };
+  $('#ankiTree').innerHTML = ANKI.filter(d => visible(d.name)).map(d => {
+    const depth = d.name.split('::').length - 1, short = d.name.split('::').pop(), k = 'anki:' + d.name;
+    const cls = S.decks.includes(k) ? 'on' : isAncestorSelected(d.name) ? 'inherited' : '';
+    const kids = hasKids(d.name);
+    return `<div class="row ${cls}" data-k="${esc(k)}" style="padding-left:${8 + depth * 22}px;${anim()}">
+      <span class="tw ${open.has(d.name) ? 'open' : ''}" data-t="${kids ? 1 : ''}">${kids ? '▸' : ''}</span><span class="box"></span>
+      <span class="nm" title="${esc(d.name)}">${esc(short)}</span><span class="ct">${d.count.toLocaleString()}</span></div>`;
+  }).join('') || `<p class="empty">${$('#profile').options.length ? T.ankiEmpty : T.noAnki}</p>`;
+  animateRows = false;
+
+  const count = k => k.startsWith('anki:') ? (ANKI.find(d => d.name === k.slice(5))?.count || 0) : (LOCAL.find(d => 'local:' + d.id === k)?.count || 0);
+  const total = S.decks.reduce((s, k) => s + count(k), 0);
+  $('#start').disabled = !S.decks.length;
+  if (!$('#summary').classList.contains('good'))
+    $('#summary').textContent = S.decks.length ? T.summary(S.decks.length, total.toLocaleString()) : T.pickDeck;
+}
+function flash(msg) {   // short highlighted message in the summary line
+  const s = $('#summary'); s.textContent = msg; s.classList.add('good');
+  setTimeout(() => { s.classList.remove('good'); render(); }, 5000);
+}
+
+$('#lists').addEventListener('click', e => {
+  const ed = e.target.closest('[data-edit]'); if (ed) return openEditor(ed.dataset.edit);
+  const row = e.target.closest('.row'); if (!row) return;
+  const k = row.dataset.k, n = k.startsWith('anki:') ? k.slice(5) : null;
+  if (n && e.target.dataset.t) { open.has(n) ? open.delete(n) : open.add(n); }
+  else if (!n || !isAncestorSelected(n)) {
+    if (S.decks.includes(k)) S.decks = S.decks.filter(x => x !== k);
+    else S.decks = [...S.decks.filter(x => !(n && x.startsWith(k + '::'))), k]; // parent covers its subdecks
+  }
+  render();
+});
+$('#lists').addEventListener('dblclick', e => {
+  const row = e.target.closest('.row'); if (!row || !row.dataset.k.startsWith('anki:')) return;
+  const n = row.dataset.k.slice(5); open.has(n) ? open.delete(n) : open.add(n); render();
+});
+$('#none').onclick = () => { S.decks = []; render(); };
+$('#reload').onclick = () => init($('#profile').value, true);
+$('#profile').onchange = () => { S.decks = S.decks.filter(k => k.startsWith('local:')); init($('#profile').value, true); };
+$('#brightness').oninput = e => { setBright(+e.target.value); syncSettingsUI(); };
+$('#tbBright').oninput = e => { setBright(+e.target.value); saveSoon(); };
+$$('.chip').forEach(c => c.onclick = () => {
+  const [q, a, b] = c.dataset.p.split(',').map(Number); $('#q').value = q; $('#a').value = a; $('#black').value = b; markPreset();
+});
+['q', 'a', 'black'].forEach(id => $('#' + id).addEventListener('input', markPreset));
+function markPreset() {
+  const cur = [$('#q').value, $('#a').value, $('#black').value].join(',');
+  $$('.chip').forEach(c => c.classList.toggle('on', c.dataset.p === cur));
+}
+
+$('#import').onclick = async () => {
+  const b = $('#import'); b.textContent = T.importing; b.disabled = true;
+  const r = await api('/api/import', {});
+  b.textContent = T.import; b.disabled = false;
+  if (r.local) LOCAL = r.local;
+  for (const name of r.made || []) { const d = LOCAL.find(x => x.name === name); if (d && !S.decks.includes('local:' + d.id)) S.decks.push('local:' + d.id); }
+  render();
+  if (r.errors?.length || r.error) $('#summary').innerHTML = `<span class="err">${esc((r.errors || [r.error]).join(' · '))}</span>`;
+  else if (r.made?.length) flash(T.imported(r.made.join(', ')));
+};
+
+/* ---------------- deck editor ---------------- */
+let editing = null;
+async function openEditor(id) {
+  editing = id || null;
+  $('#mTitle').textContent = id ? T.editDeckTitle : T.newDeckTitle;
+  $('#mDelete').style.display = id ? '' : 'none';
+  $('#mDelete').dataset.sure = ''; $('#mDelete').textContent = T.deleteDeck;
+  $('#mName').value = ''; $('#mText').value = ''; $('#mText').disabled = false;
+  $('#mHint').style.display = '';
+  if (id) {
+    const d = await api('/api/deck?id=' + id);
+    $('#mName').value = d.name;
+    if (d.text == null) {   // imported / starred: cards are HTML, so rename / delete only
+      $('#mText').value = T.apkgLocked; $('#mText').disabled = true; $('#mHint').style.display = 'none';
+    } else $('#mText').value = d.text;
+  }
+  countCards();
+  $('#modal').classList.add('open');
+  setTimeout(() => (id ? $('#mText') : $('#mName')).focus(), 50);
+}
+function closeEditor() { $('#modal').classList.remove('open'); editing = null; }
+function countCards() {
+  if ($('#mText').disabled) { $('#mCount').textContent = ''; return; }
+  $('#mCount').textContent = T.cards($('#mText').value.split('\n').filter(l => l.trim() && !l.startsWith('#')).length);
+}
+$('#mText').addEventListener('input', countCards);
+$('#newDeck').onclick = () => openEditor();
+$('#mCancel').onclick = closeEditor;
+$('#modal').addEventListener('mousedown', e => { if (e.target.id === 'modal') closeEditor(); });
+$('#mSave').onclick = async () => {
+  const name = $('#mName').value.trim() || T.myDeckDefault;
+  const r = $('#mText').disabled
+    ? await api('/api/deck/rename', { id: editing, name })
+    : await api('/api/deck/save', { id: editing, name, text: $('#mText').value });
+  if (r.error) { $('#mCount').innerHTML = `<span class="err">${esc(r.error)}</span>`; return; }
+  LOCAL = r.local;
+  if (r.deck && !S.decks.includes('local:' + r.deck.id)) S.decks.push('local:' + r.deck.id);
+  closeEditor(); render();
+};
+$('#mDelete').onclick = async () => {
+  if ($('#mDelete').dataset.sure !== '1') { $('#mDelete').dataset.sure = '1'; $('#mDelete').textContent = T.deleteSure; return; }
+  const r = await api('/api/deck/delete', { id: editing });
+  LOCAL = r.local; S.decks = S.decks.filter(k => k !== 'local:' + editing);
+  closeEditor(); render();
+};
+
+/* ---------------- settings ---------------- */
+$('#swatches').innerHTML = ACCENTS.map(([c, n]) => `<button class="sw" data-c="${c}" title="${n}" style="background:${c}"></button>`).join('')
+  + '<input type="color" id="customColor" title="Custom">';
+$('#swatches').addEventListener('click', e => { const b = e.target.closest('[data-c]'); if (b) { S.accent = b.dataset.c; changed(); } });
+$('#customColor').addEventListener('input', e => { S.accent = e.target.value.toUpperCase(); changed(); });
+$$('.tabs button').forEach(b => b.onclick = () => {
+  $$('.tabs button').forEach(x => x.classList.toggle('on', x === b));
+  $$('.pane').forEach(p => p.classList.toggle('on', p.dataset.pane === b.dataset.tab));
+});
+$$('input[data-set]').forEach(inp => inp.addEventListener('input', () => { S[inp.dataset.set] = +inp.value; changed(); }));
+$$('.seg[data-set]').forEach(seg => seg.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const v = b.dataset.v; S[seg.dataset.set] = v === 'true' ? true : v === 'false' ? false : v; changed();
+}));
+function changed() { applyLook(); syncSettingsUI(); saveSoon(); }
+function syncSettingsUI() {
+  $$('.sw').forEach(b => b.classList.toggle('on', (b.dataset.c || '').toUpperCase() === (S.accent || '').toUpperCase()));
+  if ($('#customColor') && S.accent) $('#customColor').value = S.accent;
+  $('#vAccent').textContent = S.accent || '';
+  $$('input[data-set]').forEach(inp => { if (S[inp.dataset.set] != null) inp.value = S[inp.dataset.set]; });
+  $$('.seg[data-set]').forEach(seg => seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', String(S[seg.dataset.set]) === b.dataset.v)));
+  const unit = { ui_scale: '%', card_size: '%', card_width: '%', brightness: '%', shift_amount: '' };
+  $$('[data-val]').forEach(v => {
+    const k = v.dataset.val;
+    v.textContent = k === 'sleep_min' ? (S[k] ? S[k] + ' ' + T.min : T.never) : (S[k] ?? '') + (unit[k] ?? '');
+  });
+  const sz = Math.round(30 * (S.card_size || 100) / 100);
+  ['#prevText', '#prevText2'].forEach(s => { $(s).style.fontSize = sz + 'px'; });
+}
+$('#openSettings').onclick = () => { syncSettingsUI(); $('#settings').classList.add('open'); };
+$('#setClose').onclick = () => $('#settings').classList.remove('open');
+$('#settings').addEventListener('mousedown', e => { if (e.target.id === 'settings') $('#settings').classList.remove('open'); });
+$('#fullNow').onclick = () => act.full();
+$('#resetAll').onclick = () => {
+  const keep = { decks: S.decks, profile: S.profile, lang: S.lang };
+  S = { ...DEF_SETTINGS, ...keep }; fillForm(); changed();
+};
+const DEF_SETTINGS = { q: 5, a: 5, black: 10, filter: 'all', order: 'shuffle', brightness: 70, shift: true, awake: true, clock: false,
+  ui_scale: 110, card_size: 100, card_width: 82, font: 'gothic', align: 'center', shift_amount: 6, progress: true, anim: 'smooth',
+  on_end: 'loop', clock24: true, sleep_min: 0, accent: '#F5A9C3', tone: 'neutral', start_full: true, play_full: true };
+
+function setBright(v) {
+  S.brightness = Math.max(20, Math.min(100, v));
+  document.documentElement.style.setProperty('--bright', S.brightness / 100);
+  $('#bval').textContent = S.brightness + '%';
+  $('#brightness').value = S.brightness; $('#tbBright').value = S.brightness;
+}
+
+function readForm() {
+  const num = id => Math.max(0, Math.min(600, parseFloat($('#' + id).value) || 0));
+  Object.assign(S, { q: num('q'), a: num('a'), black: num('black'), filter: $('#filter').value, order: $('#order').value,
+    shift: $('#shift').checked, awake: $('#awake').checked, clock: $('#clockOn').checked });
+}
+let saveT; const saveSoon = () => { clearTimeout(saveT); saveT = setTimeout(() => api('/api/save', S), 600); };
+
+/* ---------------- player ---------------- */
+let ids = [], idx = 0, phase = null, timer = null, endsAt = 0, remaining = 0, paused = false, cache = new Map(), toastT, skipped = 0;
+let seen = new Set(), sessionStart = 0, sleepT = null, wasFull = true, holding = false;
+const playing = () => document.body.classList.contains('playing');
+
+$('#start').onclick = async () => {
+  readForm();
+  if (S.q + S.a + S.black === 0) { $('#summary').textContent = T.zeroPhases; return; }
+  $('#start').disabled = true; $('#summary').textContent = T.loadingShort;
+  const r = await api('/api/start', S);
+  $('#start').disabled = false;
+  if (r.error || !r.ids.length) { $('#summary').textContent = r.error || T.noMatch; return; }
+  ids = r.ids; idx = 0; cache.clear(); paused = false; seen = new Set(); sessionStart = Date.now();
+  wasFull = FULL;
+  if (S.play_full && !FULL) FULL = (await api('/api/fullscreen', { on: true })).full;
+  clearTimeout(sleepT);
+  if (S.sleep_min > 0) sleepT = setTimeout(() => { stop(); flash(T.sleepDone); api('/api/stop', S); }, S.sleep_min * 60000);
+  $('#menu').classList.add('leaving');
+  await wait(450);
+  $('#menu').style.display = 'none'; document.body.classList.add('playing'); $('#player').style.display = 'block';
+  updateBar(); showCard();
+};
+
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const getCard = id => { if (!cache.has(id)) cache.set(id, api('/api/card?id=' + encodeURIComponent(id))); return cache.get(id); };
+const isBlank = h => !h || !h.replace(/<(?!img)[^>]+>/g, '').replace(/&nbsp;|\s/g, '');
+
+async function showCard() {
+  if (idx >= ids.length) {
+    if (S.on_end === 'stop') { stop(); return; }
+    idx = 0; if (S.order === 'shuffle') ids.sort(() => Math.random() - .5);
+  }
+  if (idx < 0) idx = ids.length - 1;
+  const card = await getCard(ids[idx]);
+  getCard(ids[(idx + 1) % ids.length]); // preload
+  if (cache.size > 40) cache.delete(cache.keys().next().value);
+  if (!card.error && isBlank(card.q) && skipped < ids.length) { skipped++; idx++; return showCard(); }  // empty card: skip
+  skipped = 0;
+  window._card = card; seen.add(ids[idx]);
+  const amt = S.shift ? (S.shift_amount ?? 6) : 0;
+  const dx = (Math.random() * 2 - 1) * amt * .8, dy = (Math.random() * 2 - 1) * amt;
+  $('#stage').style.transform = `translate(calc(-50% + ${dx}vw), calc(-50% + ${dy}vh))`;
+  go(S.q > 0 ? 'q' : S.a > 0 ? 'a' : 'black');
+}
+
+let goToken = 0;
+async function go(p) {
+  const token = ++goToken;
+  phase = p; clearTimeout(timer);
+  const secs = S[p];
+  const content = $('#content');
+  const sp = S.anim === 'none' ? 0 : S.anim === 'fast' ? .45 : 1;
+  updateBar();
+  if (p === 'black') {
+    content.classList.add('out');
+    schedule(secs * 1000);
+    if (S.clock && secs >= 2) setTimeout(() => token === goToken && showClock(), 700 * sp);
+    await wait(700 * sp); if (token === goToken) content.innerHTML = '';
+    return;
+  }
+  hideClock();
+  if (content.innerHTML && !content.classList.contains('out')) {   // cross-fade q -> a
+    content.classList.add('out'); await wait(380 * sp); if (token !== goToken) return;
+  }
+  const c = window._card;
+  if (!c) return;   // first card still loading
+  content.innerHTML = c.error ? `<span class="err">${esc(c.error)}</span>` : wrapLines(p === 'q' ? c.q : c.a);
+  content.className = p === 'a' ? 'answer' : '';
+  fit();
+  const bar = $('#bar i');
+  bar.style.transition = 'none'; bar.style.transform = 'scaleX(1)';
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    bar.style.transition = `transform ${secs}s linear`; bar.style.transform = 'scaleX(0)';
+  }));
+  schedule(secs * 1000);
+}
+
+// group loose text into blocks so each line can animate in on its own
+function wrapLines(h) {
+  const t = document.createElement('div'); t.innerHTML = h;
+  const out = document.createElement('div'); let cur = null;
+  for (const n of [...t.childNodes]) {
+    if (n.nodeType === 1 && n.tagName === 'BR') { cur = null; continue; }
+    if (n.nodeType === 1 && /^(DIV|P|HR|UL|OL|TABLE|H\d|IMG|BLOCKQUOTE)$/.test(n.tagName)) { out.appendChild(n); cur = null; }
+    else { if (n.nodeType === 3 && !n.textContent.trim() && !cur) continue; if (!cur) { cur = document.createElement('div'); out.appendChild(cur); } cur.appendChild(n); }
+  }
+  return out.innerHTML;
+}
+
+let clockT;
+function showClock() {
+  const c = $('#clock'), now = new Date();
+  let h = now.getHours(), suf = '';
+  if (S.clock24 === false) { suf = h < 12 ? ' am' : ' pm'; h = h % 12 || 12; }
+  c.innerHTML = `${h}:${String(now.getMinutes()).padStart(2, '0')}<span style="font-size:.4em">${suf}</span><small>${T.days[now.getDay()]} ${now.getMonth() + 1}/${now.getDate()}</small>`;
+  c.style.left = (8 + Math.random() * 70) + 'vw'; c.style.top = (10 + Math.random() * 70) + 'vh';
+  c.classList.add('show');
+  clearTimeout(clockT); clockT = setTimeout(hideClock, Math.max(1000, remaining - 1400));
+}
+function hideClock() { $('#clock').classList.remove('show'); }
+
+function schedule(ms) {
+  remaining = ms; endsAt = Date.now() + ms;
+  if (!paused && !holding) timer = setTimeout(next, ms);
+}
+
+function next() {
+  if (phase === 'q' && S.a > 0) return go('a');
+  if ((phase === 'q' || phase === 'a') && S.black > 0) return go('black');
+  idx++; showCard();
+}
+
+// shrink text until the card fits on screen
+function fit() {
+  const c = $('#content');
+  const k = (S.card_size || 100) / 100;
+  let size = Math.min(innerHeight * 0.085, innerWidth * 0.052) * k;
+  c.style.fontSize = size + 'px';
+  const max = innerHeight * 0.8;
+  while (c.scrollHeight > max && size > 14) { size *= 0.92; c.style.fontSize = size + 'px'; }
+}
+
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 1700);
+}
+
+// freeze / unfreeze the countdown (shared by pause and hold)
+function freeze() {
+  clearTimeout(timer); remaining = Math.max(0, endsAt - Date.now());
+  const bar = $('#bar i'), cs = getComputedStyle(bar).transform; bar.style.transition = 'none'; bar.style.transform = cs;
+}
+function unfreeze() {
+  endsAt = Date.now() + remaining; timer = setTimeout(next, remaining);
+  const bar = $('#bar i'); bar.style.transition = `transform ${remaining / 1000}s linear`; bar.style.transform = 'scaleX(0)';
+}
+
+function togglePause() {
+  paused = !paused;
+  const p = $('#paused');
+  if (paused) {
+    if (!holding) freeze();
+    p.style.left = (10 + Math.random() * 75) + 'vw'; p.style.top = (12 + Math.random() * 76) + 'vh'; p.style.display = 'block';
+  } else {
+    p.style.display = 'none'; if (!holding) unfreeze();
+  }
+  $('#pauseIcon').innerHTML = paused ? '<path d="M7 4v16l13-8L7 4Z"/>' : '<path d="M8 5v14M16 5v14"/>';
+}
+
+async function stop() {
+  if (!playing()) return;
+  clearTimeout(timer); clearTimeout(sleepT); goToken++; paused = false; holding = false; $('#paused').style.display = 'none'; hideClock();
+  $('#player').classList.remove('holding');
+  $('#content').innerHTML = ''; closeBar(true);
+  $('#player').style.display = 'none'; document.body.classList.remove('playing');
+  $('#menu').style.display = ''; fillForm();
+  requestAnimationFrame(() => $('#menu').classList.remove('leaving'));
+  if (S.play_full && !wasFull && FULL) FULL = (await api('/api/fullscreen', { on: false })).full;
+  api('/api/stop', S); render();
+  const mins = Math.max(1, Math.round((Date.now() - sessionStart) / 60000));
+  if (seen.size) flash(T.session(seen.size, mins));
+}
+
+async function starCard() {
+  if (!ids.length) return;
+  const r = await api('/api/star', { id: ids[idx % ids.length] });
+  if (r.local) LOCAL = r.local;
+  toast(r.added ? T.starred(r.count) : T.already);
+  const b = $('#starBtn'); b.classList.add('on'); setTimeout(() => b.classList.remove('on'), 1200);
+}
+
+function cardSize(delta) {
+  S.card_size = Math.max(50, Math.min(200, (S.card_size || 100) + delta)); fit(); toast(T.sizeTo(S.card_size)); saveSoon();
+}
+
+const act = {
+  prev() { if (paused) togglePause(); if (phase === 'q') idx--; showCard(); },
+  next() { if (paused) togglePause(); next(); },
+  pause: togglePause,
+  answer() { if (paused) togglePause(); if (S.a > 0) go('a'); },
+  black() { if (paused) togglePause(); go('black'); },
+  async full() { FULL = (await api('/api/fullscreen', {})).full; },
+  menu: stop,
+  quit() { api('/api/quit'); },
+  star: starCard,
+};
+
+/* ---------------- mouse on the card: hold = keep reading, click = skip, wheel = browse ---------------- */
+let downAt = 0, holdT = null, wheelT = 0;
+$('#player').addEventListener('mousedown', e => {
+  if (e.button !== 0 || e.target.closest('#topbar')) return;
+  downAt = Date.now();
+  holdT = setTimeout(() => {           // held for 250ms: freeze until released
+    holding = true; $('#player').classList.add('holding');
+    if (!paused) freeze();
+  }, 250);
+});
+addEventListener('mouseup', e => {
+  if (!playing() || e.button !== 0) return;
+  clearTimeout(holdT);
+  if (holding) {
+    holding = false; $('#player').classList.remove('holding');
+    if (!paused) unfreeze();
+  } else if (downAt && Date.now() - downAt < 250 && !e.target.closest('#topbar')) {
+    clickT = setTimeout(() => act.next(), 230);   // wait to see if it's a double-click
+  }
+  downAt = 0;
+});
+let clickT;
+$('#player').addEventListener('dblclick', e => { if (e.target.closest('#topbar')) return; clearTimeout(clickT); act.full(); });
+$('#player').addEventListener('wheel', e => {
+  if (e.target.closest('#topbar') || Date.now() - wheelT < 450) return;
+  wheelT = Date.now();
+  if (e.deltaY > 0) { if (paused) togglePause(); idx++; showCard(); } else act.prev();
+}, { passive: true });
+
+/* ---------------- top bar ---------------- */
+let barT, cursorT;
+function updateBar() {
+  $('#tbDeck').textContent = window._card?.deck?.split('::').pop() || '—';
+  $('#tbCount').textContent = ids.length ? T.cardOf((idx % ids.length) + 1, ids.length.toLocaleString()) : '';
+  $('#tq').textContent = S.q + 's'; $('#ta').textContent = S.a + 's'; $('#tb').textContent = S.black + 's';
+  $('#phQ').classList.toggle('now', phase === 'q'); $('#phA').classList.toggle('now', phase === 'a'); $('#phB').classList.toggle('now', phase === 'black');
+}
+function openBar() { clearTimeout(barT); $('#topbar').classList.add('open'); $('#player').classList.add('cursor'); }
+function closeBar(now) {
+  clearTimeout(barT);
+  barT = setTimeout(() => { $('#topbar').classList.remove('open'); $('#player').classList.remove('cursor'); }, now ? 0 : 900);
+}
+$('#topzone').addEventListener('mouseenter', openBar);
+$('#topbar').addEventListener('mouseenter', openBar);
+$('#topbar').addEventListener('mouseleave', () => closeBar());
+$('#topbar').addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if (b) return act[b.dataset.act]();
+  const z = e.target.closest('[data-size]'); if (z) return cardSize(+z.dataset.size);
+  const s = e.target.closest('[data-t]');
+  if (s) { const k = s.dataset.t; S[k] = Math.max(0, Math.min(600, S[k] + +s.dataset.d)); if (S.q + S.a + S.black === 0) S[k] = 1; updateBar(); saveSoon(); }
+});
+document.addEventListener('mousemove', e => {
+  if (!playing()) return;
+  if (e.clientY < 18) openBar();
+  $('#player').classList.add('cursor'); clearTimeout(cursorT);
+  cursorT = setTimeout(() => { if (!$('#topbar').classList.contains('open')) $('#player').classList.remove('cursor'); }, 1500);
+});
+addEventListener('resize', () => { if (playing()) fit(); });
+
+/* ---------------- keys ---------------- */
+document.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if ($('#modal').classList.contains('open')) {
+    if (k === 'escape') closeEditor();
+    if (k === 's' && e.ctrlKey) { e.preventDefault(); $('#mSave').click(); }
+    return;
+  }
+  if ($('#settings').classList.contains('open')) { if (k === 'escape') $('#settings').classList.remove('open'); return; }
+  if (!playing()) {
+    if (e.target.matches('input,select,textarea')) return;
+    if (k === 'q') api('/api/quit');
+    if (k === 'f') act.full();
+    if (k === 'enter' && !$('#start').disabled) $('#start').click();
+    return;
+  }
+  if (e.target.matches('input[type=range]') && k.startsWith('arrow')) return;
+  e.preventDefault();
+  if (k === 'escape') stop();
+  else if (k === 'q') act.quit();
+  else if (k === 'f') act.full();
+  else if (k === ' ' || k === 'arrowright') act.next();
+  else if (k === 'arrowleft') act.prev();
+  else if (k === 'enter') act.answer();
+  else if (k === 'b') act.black();
+  else if (k === 'p') togglePause();
+  else if (k === 's') starCard();
+  else if (k === '+' || k === '=') cardSize(10);
+  else if (k === '-' || k === '_') cardSize(-10);
+  else if (k === 'arrowup') { setBright(S.brightness + 10); toast(T.brightTo(S.brightness)); saveSoon(); }
+  else if (k === 'arrowdown') { setBright(S.brightness - 10); toast(T.brightTo(S.brightness)); saveSoon(); }
+});
+
+applyLang((navigator.language || '').startsWith('ja') ? 'ja' : 'en');
+init();
+</script>
+</body>
+</html>
