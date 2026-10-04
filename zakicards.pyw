@@ -1,4 +1,4 @@
-﻿"""ã‚¶ã‚­Cards (ZakiCards): OLED-safe fullscreen flashcard slideshow.
+"""ã‚¶ã‚­Cards (ZakiCards): OLED-safe fullscreen flashcard slideshow.
 
 Deck sources:
   * your Anki profiles (read from a *copy*, never written to)
