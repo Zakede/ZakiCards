@@ -243,6 +243,15 @@
   .step button { width: 22px; height: 24px; border: 0; background: none; color: #59625f; cursor: pointer; border-radius: 6px; font-size: 15px; line-height: 1; }
   .step button:hover { color: var(--accent); background: var(--accent-ghost); }
   .step span { min-width: 28px; text-align: center; font-size: 15px; font-variant-numeric: tabular-nums; }
+  #botzone { position: fixed; left: 0; right: 0; bottom: 0; height: 22px; z-index: 5; }
+  #botbar { position: fixed; left: 50%; bottom: 16px; z-index: 6; display: flex; align-items: center; gap: 10px; zoom: var(--ui);
+    padding: 8px 12px; border-radius: 16px; background: rgba(8, 11, 11, .94); border: 1px solid #1d2323;
+    box-shadow: 0 -20px 50px -20px rgba(0,0,0,.9); backdrop-filter: blur(12px);
+    transform: translate(-50%, 140%); opacity: 0; transition: transform .55s var(--spring), opacity .3s; cursor: default; white-space: nowrap; }
+  #botbar.open { transform: translate(-50%, 0); opacity: 1; }
+  #botbar .big { width: 56px; height: 44px; }
+  #botbar .big svg { width: 24px; height: 24px; }
+  #botbar .count { min-width: 120px; text-align: center; color: var(--dim); font-size: 13px; font-variant-numeric: tabular-nums; }
   .bright { display: flex; align-items: center; gap: 6px; color: #59625f; padding: 0 4px; }
   .bright input { width: 80px; }
 </style>
@@ -402,6 +411,14 @@
   <div id="clock"></div>
   <div id="toast"></div>
   <div id="paused" data-i="paused"></div>
+  <div id="botzone"></div>
+  <div id="botbar">
+    <button class="ib big" data-act="prevCard" data-i-title="tPrevCard"><svg viewBox="0 0 24 24"><path d="M15 18 9 12l6-6"/></svg></button>
+    <button class="ib" data-act="pause" data-i-title="tPause"><svg class="pauseIcon2" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg></button>
+    <span class="count" id="botCount"></span>
+    <button class="ib" data-act="star" data-i-title="tStar"><svg viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9L12 3Z"/></svg></button>
+    <button class="ib big" data-act="nextCard" data-i-title="tNextCard"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+  </div>
   <div id="topzone"></div>
   <div id="topbar">
     <div class="logo" data-logo></div>
@@ -484,7 +501,7 @@ const L = {
     paused: 'PAUSED', holding: 'HOLDING', cardOf: (i, n) => `card ${i} of ${n}`, brightTo: v => `brightness ${v}%`, sizeTo: v => `text size ${v}%`,
     starred: n => `★ starred (${n} in Starred)`, already: 'already starred', sleepDone: 'Sleep timer: stopped',
     days: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
-    tPrev: 'Previous card (←)', tPause: 'Pause (P)', tNext: 'Skip ahead (Space)', tStar: 'Star this card (S)', tBright: 'Brightness (↑ ↓)',
+    tPrev: 'Previous card (←)', tPrevCard: 'Previous card', tNextCard: 'Next card', tPause: 'Pause (P)', tNext: 'Skip ahead (Space)', tStar: 'Star this card (S)', tBright: 'Brightness (↑ ↓)',
     tSize: 'Text size (+ −)', tFull: 'Fullscreen (F)', tMenu: 'Back to menu (Esc)', tQuit: 'Quit (Q)',
     settings: 'Settings', tLook: 'Colours', tDisplay: 'Size & text', tPlay: 'Playback', tWindow: 'Window',
     sAccent: 'Accent colour', sAccentSub: 'Logo, highlights and buttons', sTone: 'Card text tone', sToneSub: 'Warm is easier at night',
@@ -531,7 +548,7 @@ const L = {
     paused: '一時停止', holding: '長押し中', cardOf: (i, n) => `${n}枚中 ${i}枚目`, brightTo: v => `明るさ ${v}%`, sizeTo: v => `文字サイズ ${v}%`,
     starred: n => `★ スターに追加（${n}枚）`, already: 'スター済み', sleepDone: 'スリープタイマーで停止しました',
     days: ['日', '月', '火', '水', '木', '金', '土'],
-    tPrev: '前のカード (←)', tPause: '一時停止 (P)', tNext: '次へ (Space)', tStar: 'このカードにスター (S)', tBright: '明るさ (↑ ↓)',
+    tPrev: '前のカード (←)', tPrevCard: '前のカード', tNextCard: '次のカード', tPause: '一時停止 (P)', tNext: '次へ (Space)', tStar: 'このカードにスター (S)', tBright: '明るさ (↑ ↓)',
     tSize: '文字サイズ (+ −)', tFull: '全画面 (F)', tMenu: 'メニューに戻る (Esc)', tQuit: '終了 (Q)',
     settings: '設定', tLook: '色', tDisplay: 'サイズ・文字', tPlay: '再生', tWindow: 'ウィンドウ',
     sAccent: 'アクセントカラー', sAccentSub: 'ロゴ・強調・ボタンの色', sTone: 'カード文字の色味', sToneSub: '夜は暖色がおすすめ',
@@ -949,14 +966,15 @@ function togglePause() {
   } else {
     p.style.display = 'none'; if (!holding) unfreeze();
   }
-  $('#pauseIcon').innerHTML = paused ? '<path d="M7 4v16l13-8L7 4Z"/>' : '<path d="M8 5v14M16 5v14"/>';
+  const icon = paused ? '<path d="M7 4v16l13-8L7 4Z"/>' : '<path d="M8 5v14M16 5v14"/>';
+  $('#pauseIcon').innerHTML = icon; $$('.pauseIcon2').forEach(s => s.innerHTML = icon);
 }
 
 async function stop() {
   if (!playing()) return;
   clearTimeout(timer); clearTimeout(sleepT); goToken++; paused = false; holding = false; $('#paused').style.display = 'none'; hideClock();
   $('#player').classList.remove('holding');
-  $('#content').innerHTML = ''; closeBar(true);
+  $('#content').innerHTML = ''; closeBar(true); closeBot(true);
   $('#player').style.display = 'none'; document.body.classList.remove('playing');
   $('#menu').style.display = ''; fillForm();
   requestAnimationFrame(() => $('#menu').classList.remove('leaving'));
@@ -980,6 +998,8 @@ function cardSize(delta) {
 
 const act = {
   prev() { if (paused) togglePause(); if (phase === 'q') idx--; showCard(); },
+  prevCard() { if (paused) togglePause(); idx--; showCard(); },
+  nextCard() { if (paused) togglePause(); idx++; showCard(); },
   next() { if (paused) togglePause(); next(); },
   pause: togglePause,
   answer() { if (paused) togglePause(); if (S.a > 0) go('a'); },
@@ -993,7 +1013,7 @@ const act = {
 /* mouse on the card */
 let downAt = 0, holdT = null, wheelT = 0;
 $('#player').addEventListener('mousedown', e => {
-  if (e.button !== 0 || e.target.closest('#topbar')) return;
+  if (e.button !== 0 || e.target.closest('#topbar, #botbar')) return;
   downAt = Date.now();
   holdT = setTimeout(() => {           // held for 250ms: freeze until released
     holding = true; $('#player').classList.add('holding');
@@ -1006,15 +1026,15 @@ addEventListener('mouseup', e => {
   if (holding) {
     holding = false; $('#player').classList.remove('holding');
     if (!paused) unfreeze();
-  } else if (downAt && Date.now() - downAt < 250 && !e.target.closest('#topbar')) {
+  } else if (downAt && Date.now() - downAt < 250 && !e.target.closest('#topbar, #botbar')) {
     clickT = setTimeout(() => act.next(), 230);   // wait to see if it's a double-click
   }
   downAt = 0;
 });
 let clickT;
-$('#player').addEventListener('dblclick', e => { if (e.target.closest('#topbar')) return; clearTimeout(clickT); act.full(); });
+$('#player').addEventListener('dblclick', e => { if (e.target.closest('#topbar, #botbar')) return; clearTimeout(clickT); act.full(); });
 $('#player').addEventListener('wheel', e => {
-  if (e.target.closest('#topbar') || Date.now() - wheelT < 450) return;
+  if (e.target.closest('#topbar, #botbar') || Date.now() - wheelT < 450) return;
   wheelT = Date.now();
   if (e.deltaY > 0) { if (paused) togglePause(); idx++; showCard(); } else act.prev();
 }, { passive: true });
@@ -1024,6 +1044,7 @@ let barT, cursorT;
 function updateBar() {
   $('#tbDeck').textContent = window._card?.deck?.split('::').pop() || '—';
   $('#tbCount').textContent = ids.length ? T.cardOf((idx % ids.length) + 1, ids.length.toLocaleString()) : '';
+  $('#botCount').textContent = $('#tbCount').textContent;
   $('#tq').textContent = S.q + 's'; $('#ta').textContent = S.a + 's'; $('#tb').textContent = S.black + 's';
   $('#phQ').classList.toggle('now', phase === 'q'); $('#phA').classList.toggle('now', phase === 'a'); $('#phB').classList.toggle('now', phase === 'black');
 }
@@ -1033,6 +1054,13 @@ function closeBar(now) {
   barT = setTimeout(() => { $('#topbar').classList.remove('open'); $('#player').classList.remove('cursor'); }, now ? 0 : 900);
 }
 $('#topzone').addEventListener('mouseenter', openBar);
+let botT;
+function openBot() { clearTimeout(botT); $('#botbar').classList.add('open'); $('#player').classList.add('cursor'); }
+function closeBot(now) { clearTimeout(botT); botT = setTimeout(() => $('#botbar').classList.remove('open'), now ? 0 : 900); }
+$('#botzone').addEventListener('mouseenter', openBot);
+$('#botbar').addEventListener('mouseenter', openBot);
+$('#botbar').addEventListener('mouseleave', () => closeBot());
+$('#botbar').addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b) act[b.dataset.act](); });
 $('#topbar').addEventListener('mouseenter', openBar);
 $('#topbar').addEventListener('mouseleave', () => closeBar());
 $('#topbar').addEventListener('click', e => {
@@ -1044,6 +1072,7 @@ $('#topbar').addEventListener('click', e => {
 document.addEventListener('mousemove', e => {
   if (!playing()) return;
   if (e.clientY < 18) openBar();
+  if (e.clientY > innerHeight - 22) openBot();
   $('#player').classList.add('cursor'); clearTimeout(cursorT);
   cursorT = setTimeout(() => { if (!$('#topbar').classList.contains('open')) $('#player').classList.remove('cursor'); }, 1500);
 });
