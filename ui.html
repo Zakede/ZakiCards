@@ -31,14 +31,14 @@
   ::selection { background: var(--accent-deep); }
   body.noanim *, body.noanim *::before, body.noanim *::after { animation: none !important; transition: none !important; }
 
-  /* ---------------- stars (dim, always drifting: no static pixels) ---------------- */
+  /* stars */
   #stars { position: fixed; inset: 0; pointer-events: none; opacity: .5; transition: opacity 1s; }
   body.playing #stars { opacity: 0; }
 
   @keyframes rise { from { opacity: 0; transform: translateY(14px); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
   .rise { animation: rise .8s var(--ease-out) both; animation-delay: calc(var(--i, 0) * 70ms); }
 
-  /* ---------------- logo (inline SVG, follows the accent colour) ---------------- */
+  /* logo */
   .logo { position: relative; width: 66px; height: 66px; flex: none; color: var(--accent); animation: float 5s ease-in-out infinite; }
   .logo svg { width: 100%; height: 100%; display: block; overflow: visible; filter: drop-shadow(0 0 14px color-mix(in srgb, var(--accent) 25%, transparent)); }
   .logo .glint { position: absolute; inset: 0; pointer-events: none;
@@ -50,7 +50,7 @@
   @keyframes glint { 0%, 70% { background-position: 100% 0; } 85%, 100% { background-position: -50% 0; } }
   .logo:hover { animation-duration: 1.2s; }
 
-  /* ---------------- menu ---------------- */
+  /* menu */
   #menu { position: relative; height: calc(100% / var(--ui)); zoom: var(--ui); display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 44px;
     padding: 36px 52px; max-width: 1340px; margin: 0 auto; transition: opacity .5s, transform .6s var(--ease-out), filter .5s; }
   #menu.leaving { opacity: 0; transform: scale(.97); filter: blur(8px); pointer-events: none; }
@@ -135,7 +135,7 @@
   .err { color: #e08a7a; }
   .ver { color: #2c3332; font-size: 12px; margin-top: 12px; }
 
-  /* ---------------- sheets: deck editor + settings ---------------- */
+  /* sheets */
   .modal { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: rgba(0,0,0,.72);
     opacity: 0; pointer-events: none; transition: opacity .3s; }
   .modal.open { opacity: 1; pointer-events: auto; }
@@ -181,7 +181,7 @@
   .prevcard div { font-family: var(--card-font); color: var(--card-text); opacity: var(--bright); text-align: var(--card-align, center); width: 86%; line-height: 1.4; }
   .prevcard b { color: var(--accent); }
 
-  /* ---------------- player ---------------- */
+  /* player */
   #player { position: fixed; inset: 0; background: #000; display: none; cursor: none; user-select: none; }
   #player.cursor { cursor: default; }
   #stage { position: absolute; left: 50%; top: 50%; width: var(--card-width); max-height: 86vh;
@@ -217,7 +217,7 @@
   #paused { position: fixed; color: #4c5453; font-size: 13px; letter-spacing: .3em; display: none; animation: breathe 3s ease-in-out infinite; }
   @keyframes breathe { 50% { opacity: .35; } }
 
-  /* ---------------- drop-down top bar ---------------- */
+  /* drop-down top bar */
   #topzone { position: fixed; left: 0; right: 0; top: 0; height: 18px; z-index: 5; }
   #topbar { position: fixed; left: 50%; top: 14px; z-index: 6; display: flex; align-items: center; gap: 6px; zoom: var(--ui);
     padding: 8px 10px 8px 12px; border-radius: 16px; background: rgba(8, 11, 11, .94); border: 1px solid #1d2323;
@@ -443,13 +443,13 @@ const FONTS = {
 };
 const TONES = { neutral: '#d6dcdb', warm: '#ecdcc8', cool: '#cfdcec' };
 
-/* ---------------- logo: inline SVG, so it never shows a broken image ---------------- */
+/* logo */
 fetch('/assets/logo.svg').then(r => r.text()).then(svg => {
   $$('[data-logo]').forEach(el => { el.innerHTML = svg + '<span class="glint"></span>'; });
   document.documentElement.style.setProperty('--logo-mask', `url("data:image/svg+xml;utf8,${encodeURIComponent(svg.replace(/currentColor/g, '#000'))}")`);
 });
 
-/* ---------------- language ---------------- */
+/* language */
 const L = {
   en: {
     tagline: 'Flashcards on a black screen. Easy on your eyes, easy on your OLED.',
@@ -561,7 +561,7 @@ function applyLang(lang) {
 }
 $$('[data-lang]').forEach(b => b.onclick = () => { applyLang(b.dataset.lang); saveSoon(); });
 
-/* ---------------- look: apply every display setting ---------------- */
+/* look */
 function applyLook() {
   const r = document.documentElement.style;
   r.setProperty('--accent', S.accent || '#F5A9C3');
@@ -578,7 +578,7 @@ function applyLook() {
   if (playing()) fit();
 }
 
-/* ---------------- stars ---------------- */
+/* stars */
 (() => {
   const c = $('#stars'), g = c.getContext('2d'); let pts = [];
   const size = () => { c.width = innerWidth; c.height = innerHeight;
@@ -599,7 +599,7 @@ function applyLook() {
   })();
 })();
 
-/* ---------------- menu ---------------- */
+/* menu */
 async function init(profile, reload) {
   $('#reload').classList.add('spin');
   const qs = new URLSearchParams();
@@ -702,7 +702,7 @@ $('#import').onclick = async () => {
   else if (r.made?.length) flash(T.imported(r.made.join(', ')));
 };
 
-/* ---------------- deck editor ---------------- */
+/* deck editor */
 let editing = null;
 async function openEditor(id) {
   editing = id || null;
@@ -748,7 +748,7 @@ $('#mDelete').onclick = async () => {
   closeEditor(); render();
 };
 
-/* ---------------- settings ---------------- */
+/* settings */
 $('#swatches').innerHTML = ACCENTS.map(([c, n]) => `<button class="sw" data-c="${c}" title="${n}" style="background:${c}"></button>`).join('')
   + '<input type="color" id="customColor" title="Custom">';
 $('#swatches').addEventListener('click', e => { const b = e.target.closest('[data-c]'); if (b) { S.accent = b.dataset.c; changed(); } });
@@ -803,7 +803,7 @@ function readForm() {
 }
 let saveT; const saveSoon = () => { clearTimeout(saveT); saveT = setTimeout(() => api('/api/save', S), 600); };
 
-/* ---------------- player ---------------- */
+/* player */
 let ids = [], idx = 0, phase = null, timer = null, endsAt = 0, remaining = 0, paused = false, cache = new Map(), toastT, skipped = 0;
 let seen = new Set(), sessionStart = 0, sleepT = null, wasFull = true, holding = false;
 const playing = () => document.body.classList.contains('playing');
@@ -990,7 +990,7 @@ const act = {
   star: starCard,
 };
 
-/* ---------------- mouse on the card: hold = keep reading, click = skip, wheel = browse ---------------- */
+/* mouse on the card */
 let downAt = 0, holdT = null, wheelT = 0;
 $('#player').addEventListener('mousedown', e => {
   if (e.button !== 0 || e.target.closest('#topbar')) return;
@@ -1019,7 +1019,7 @@ $('#player').addEventListener('wheel', e => {
   if (e.deltaY > 0) { if (paused) togglePause(); idx++; showCard(); } else act.prev();
 }, { passive: true });
 
-/* ---------------- top bar ---------------- */
+/* top bar */
 let barT, cursorT;
 function updateBar() {
   $('#tbDeck').textContent = window._card?.deck?.split('::').pop() || '—';
@@ -1049,7 +1049,7 @@ document.addEventListener('mousemove', e => {
 });
 addEventListener('resize', () => { if (playing()) fit(); });
 
-/* ---------------- keys ---------------- */
+/* keys */
 document.addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if ($('#modal').classList.contains('open')) {

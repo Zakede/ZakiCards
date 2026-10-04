@@ -73,7 +73,7 @@ DEFAULT_SETTINGS = {
 }
 
 
-# ---------------------------------------------------------------- settings
+# settings
 def load_settings():
     if OLD_DATA_DIR.exists() and not DATA_DIR.exists():
         try:
@@ -97,7 +97,7 @@ def save_settings(s):
         pass
 
 
-# ---------------------------------------------------------------- html cleanup
+# html cleanup
 _RX = [
     (re.compile(r"<style.*?</style>", re.S | re.I), ""),
     (re.compile(r"<script.*?</script>", re.S | re.I), ""),
@@ -119,7 +119,7 @@ def media_urls(h, prefix):
     return re.sub(r'src="(?!https?:|data:|/)([^"]+)"', lambda m: f'src="{prefix}{m.group(1)}"', h)
 
 
-# ---------------------------------------------------------------- anki profiles
+# anki profiles
 def list_profiles():
     if not ANKI_ROOT.exists():
         return []
@@ -181,7 +181,7 @@ class AnkiSource:
                 "a": media_urls(clean_html(c["a"]), "/media/"), "deck": c["deck"]}
 
 
-# ---------------------------------------------------------------- local decks
+# local decks
 class LocalDecks:
     """Decks stored as JSON in %APPDATA%/ZakiCards/decks (imports + hand-written)."""
 
@@ -245,7 +245,7 @@ class LocalDecks:
         return {"q": media_urls(c["q"], prefix), "a": media_urls(c["a"], prefix), "deck": d["name"]}
 
 
-# ---------------------------------------------------------------- importers
+# importers
 def _cell(s):
     s = s.strip()
     return s if re.search(r"<[a-zA-Z/][^>]*>", s) else htmllib.escape(s).replace("\\n", "<br>")
@@ -353,7 +353,7 @@ LOCAL = LocalDecks()
 SETTINGS = load_settings()
 
 
-# ---------------------------------------------------------------- http
+# http
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
@@ -506,7 +506,7 @@ def _plain(h):
     return htmllib.unescape(re.sub(r"<br\s*/?>", "\\\\n", re.sub(r"<(?!br)[^>]+>", "", h)))
 
 
-# ---------------------------------------------------------------- keep awake
+# keep awake
 _awake_evt = threading.Event()
 
 
@@ -527,7 +527,7 @@ def set_awake(flag):
     (_awake_evt.set if flag else _awake_evt.clear)()
 
 
-# ---------------------------------------------------------------- main
+# main
 def main():
     try:  # own taskbar icon instead of Python's
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("ZakiCards.App")

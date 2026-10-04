@@ -1,16 +1,11 @@
-"""Read-only reader for Anki collection files (.anki2).
-
-Written from scratch (no Anki code), so ZakiCards can ship under any licence.
-Handles both the modern schema (separate notetypes/templates/decks tables with
-protobuf configs) and the legacy schema (JSON blobs in the `col` table).
-"""
+"""Reads Anki collection files (.anki2): modern and legacy schemas."""
 import html
 import json
 import re
 import sqlite3
 import time
 
-# ---------------------------------------------------------------- protobuf (just enough)
+# protobuf
 
 
 def _varint(buf, i):
@@ -51,7 +46,7 @@ def _pb_str(fields, num):
     return v[0].decode("utf-8", "replace") if v else ""
 
 
-# ---------------------------------------------------------------- template engine
+# template engine
 
 _TAG = re.compile(r"\{\{(.*?)\}\}", re.S)
 _EMPTY_FIELD = re.compile(r"^(?:\s|&nbsp;| |</?(?:br|div)\s?/?>)*$", re.I)
@@ -156,7 +151,7 @@ def render(tpl, fields, ctx, question):
     return walk(_parse(tpl))
 
 
-# ---------------------------------------------------------------- collection
+# collection
 
 class AnkiFile:
     def __init__(self, path):
